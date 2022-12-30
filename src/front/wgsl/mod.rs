@@ -2526,27 +2526,34 @@ impl Parser {
                             }
                         }
                         crate::TypeInner::Vector { .. } | crate::TypeInner::Matrix { .. } => {
-                            match Composition::make(name, name_span)? {
-                                Composition::Multi(size, pattern) => {
-                                    // Once you apply the load rule, the expression is no
-                                    // longer a reference.
-                                    let current_expr = TypedExpression {
-                                        handle,
-                                        is_reference,
-                                    };
-                                    let vector = ctx.apply_load_rule(current_expr);
-                                    is_reference = false;
-
-                                    crate::Expression::Swizzle {
-                                        size,
-                                        vector,
-                                        pattern,
-                                    }
-                                }
-                                Composition::Single(index) => crate::Expression::AccessIndex {
+                            if name == "exchanged" {
+                                crate::Expression::AccessIndex {
                                     base: handle,
-                                    index,
-                                },
+                                    index: 1,
+                                }
+                            } else {
+                                match Composition::make(name, name_span)? {
+                                    Composition::Multi(size, pattern) => {
+                                        // Once you apply the load rule, the expression is no
+                                        // longer a reference.
+                                        let current_expr = TypedExpression {
+                                            handle,
+                                            is_reference,
+                                        };
+                                        let vector = ctx.apply_load_rule(current_expr);
+                                        is_reference = false;
+
+                                        crate::Expression::Swizzle {
+                                            size,
+                                            vector,
+                                            pattern,
+                                        }
+                                    }
+                                    Composition::Single(index) => crate::Expression::AccessIndex {
+                                        base: handle,
+                                        index,
+                                    },
+                                }
                             }
                         }
                         _ => return Err(Error::BadAccessor(name_span)),
@@ -4595,7 +4602,7 @@ impl Parser {
                 self.lookup_type.insert(name.to_owned(), ty);
                 lexer.expect(Token::Separator(';'))?;
             }
-            (Token::Word("let"), _) => {
+            (Token::Word("const"), _) => {
                 let (name, name_span) = lexer.next_ident_with_span()?;
                 if crate::keywords::wgsl::RESERVED.contains(&name) {
                     return Err(Error::ReservedKeyword(name_span));
